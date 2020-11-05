@@ -173,9 +173,18 @@ parseQuoted = do
 spaces :: Parser ()
 spaces = skipMany1 space
 
+parseFloat :: Parser LispVal
+parseFloat = do
+  first <- many1 digit
+  char '.'
+  rest <- many1 digit
+  return $ Float $ read $ first ++ ['.'] ++ rest
+
+
 -- trys seem to be able to be factored out to be more efficient
 parseExpr :: Parser LispVal
 parseExpr = try parseCharacter
+            <|> try parseFloat
             <|> try parseNumber
             <|> parseAtom
             <|> parseString
@@ -192,7 +201,7 @@ data LispVal = Atom String
   | String String
   | Bool Bool
   | Character Char
-  | Float Float
+  | Float Double
   | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
   | Func { params :: [String], vararg :: (Maybe String), body :: [LispVal], closure :: Env }
   | IOFunc ([LispVal] -> IOThrowsError LispVal)
@@ -205,6 +214,7 @@ showVal (String contents)= "\"" ++ contents ++ "\""
 showVal (Atom name) = name
 showVal (Number contents) = show contents
 showVal (Character c) = [c]
+showVal (Float f) = show f
 showVal (Bool True) = "#t"
 showVal (Bool False) = "#f"
 showVal (List contents) = "(" ++ unwordsList contents ++ ")"
@@ -226,6 +236,7 @@ eval env val@(String _) = return val
 eval env val@(Number _) = return val
 eval env val@(Bool _) = return val
 eval env val@(Character _) = return val
+eval env val@(Float _) = return val
 eval env (Atom id) = getVar env id
 eval env (List [Atom "quote", val]) = return val
 eval env (List [Atom "if", pred, conseq, alt]) =
