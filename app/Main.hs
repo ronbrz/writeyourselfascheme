@@ -142,9 +142,18 @@ parseCharacter :: Parser LispVal
 parseCharacter = do
   char '#'
   char '\\'
-  firstC <- alphaNum
-  rest <- many alphaNum
-  return $ Character firstC
+  charCode <- many alphaNum
+  case length charCode of
+      0 -> return $ Character ' '
+      1 -> return $ Character $ charCode !! 0
+      otherwise -> case lookup charCode charCodes of
+        Just a -> return $ Character a
+        Nothing -> unexpected "character code not found"
+
+charCodes :: [(String, Char)]
+charCodes = [("space", ' '),
+            ("newline", '\n')]
+
 
 parseList :: Parser LispVal
 parseList = liftM List $ sepBy parseExpr spaces
@@ -195,6 +204,7 @@ showVal :: LispVal -> String
 showVal (String contents)= "\"" ++ contents ++ "\""
 showVal (Atom name) = name
 showVal (Number contents) = show contents
+showVal (Character c) = [c]
 showVal (Bool True) = "#t"
 showVal (Bool False) = "#f"
 showVal (List contents) = "(" ++ unwordsList contents ++ ")"
@@ -215,6 +225,7 @@ eval :: Env -> LispVal -> IOThrowsError LispVal
 eval env val@(String _) = return val
 eval env val@(Number _) = return val
 eval env val@(Bool _) = return val
+eval env val@(Character _) = return val
 eval env (Atom id) = getVar env id
 eval env (List [Atom "quote", val]) = return val
 eval env (List [Atom "if", pred, conseq, alt]) =
