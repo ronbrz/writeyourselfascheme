@@ -129,12 +129,19 @@ parseNumber = parseNumberBase <|> (many1 digit >>= (return . Number . read))
 parseNumberBase :: Parser LispVal
 parseNumberBase = do
   char '#'
-  numType <- oneOf "odx"
+  numType <- oneOf "odbx"
   num <- many1 alphaNum
   return $ case numType of
     'o' -> Number $ fst $ readOct num !! 0
     'd' -> Number $ read num
     'x' -> Number $ fst $ readHex num !! 0
+    'b' -> Number $ binStringToDecimal num
+
+binStringToDecimal :: String -> Integer
+binStringToDecimal = fst . foldr incBin (0, 1)
+  where incBin c (x, y)
+          | c == '1' = (x + y, y * 2)
+          | otherwise = (x, y * 2)
 
 -- have to combine parseNumberbase and parsecharacter
 -- have to add multichar character mappings and space mapping
@@ -343,6 +350,7 @@ equal [arg1, arg2] = do
   eqvEquals <- eqv [arg1, arg2]
   return $ Bool $ (primitiveEquals || let (Bool x) = eqvEquals in x)
 equal badArgList = throwError $ NumArgs 2 badArgList
+
 
 unpackStr :: LispVal -> ThrowsError String
 unpackStr (String s) = return s
